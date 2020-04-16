@@ -21,7 +21,7 @@ router.get('/users', (req, res) => {
 // @desc post an items
 // @access public
 
-router.post('/create', (req, res) => {
+router.post('/create', async (req, res) => {
     const newUser = new User({
         username: req.body.username,
         password: req.body.password,
@@ -30,24 +30,27 @@ router.post('/create', (req, res) => {
 
     let username = req.body.username;
     let userID = req.body.userID;
+    try{
+        let verify = await User.findOne({ $or: [{username: username}, {userID: userID}]})
     
-    User.findOne({username: username}, {userID: userID})
-        .then(user =>{
-            if(user){
-                return res.status(404).json({username: 'Username not found'}, 
-                                            {userID: 'userID not found'});    
+            if(verify){
+                 res.status(400).send({ message: "This user already existed" });
             }else{
                 bcrypt.genSalt(10, (err, salt) =>{
                     bcrypt.hash(newUser.password, salt, (err, hash) =>{
                         newUser.password = hash;       
                         //save the user to db
-                        newUser.save().then(user => res.json(user));
+                        newUser.save().then(user => 
+                                            res.json(user)
+                                        ).catch(() =>{
+                                             res.json({err: 'User not saved'})
+                                        })
                     })
                 })
             }
-        }).catch(err =>{
-            throw err;
-        })
+        }catch(error){
+            res.status(500).send(error);
+        }
     
     
     

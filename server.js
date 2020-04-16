@@ -1,21 +1,20 @@
 const express = require("express");
 const mongoose = require('mongoose');
 const bodyParser = require("body-parser");
-const cors = require("cors");
+// const cors = require("cors");
 
 const main = require('./routes/route');
 const db =  "mongodb://localhost:27017/GumzoApp";
 const app = express();
-const passport = require('passport')
-
-
-var corsOptions = {
-  origin: "http://localhost:8081"
-};
 
 
 
-mongoose.connect(db, {useNewUrlParser: true})
+// var corsOptions = {
+//   origin: "http://localhost:8081"
+// };
+
+
+mongoose.connect(db, {useUnifiedTopology: true, useNewUrlParser: true})
   .then(() => {
     console.log("Connected to the database!");
   })
@@ -25,12 +24,16 @@ mongoose.connect(db, {useNewUrlParser: true})
 });
 
 
-app.use(cors(corsOptions));                                                                    
+// app.use(cors(corsOptions));                                                                    
 
 // parse requests of content-type - application/json
 app.use(bodyParser.json());
 
 const port = process.env.PORT || 8080;
+
+
+
+
 
 
 
