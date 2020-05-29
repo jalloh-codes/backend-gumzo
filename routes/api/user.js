@@ -6,12 +6,9 @@ const keys = require('../../config/keys')
 const passport = require('passport');
 //Item Model
 const User = require('../../models/User');
+const Contacts = require('../../models/User.contact')
 const  validatorRegister = require('../../validation/register')
 const  validatorLogin = require('../../validation/login')
-
-//@route get api/items
-// @desc get all items
-// @access public
 
 router.get('/users', (req, res) => {  
     User
@@ -20,24 +17,62 @@ router.get('/users', (req, res) => {
         .then(user => res.json(user))
 });
 
-//@route post api/items
-// @desc post an items
-// @access public
+router.get('/contacts', (req, res) => {  
+   
+    Contacts
+        .find()
+        .sort({date: -1})
+        .then(contact => res.json(contact))
+        .catch(error =>{
+            res.json({error})
+        })        
+});
+
+
+router.post('/contacts/save', async (req, res) =>{
+    const newContact = new Contacts({
+        userID: req.body.userID,
+        contact: [{userID: req.body.contact[0].userID}]
+    })
+    
+    let verify = await Contacts.findOne({userID: newContact.userID})
+    if(verify){  
+        Contacts.findOne({userID: newContact.userID}, 
+            {contact:  {$elemMatch: {userID: newContact.contact[0].userID}}
+        }).then(match =>{
+            if(match.contact.length == 0){
+                Contacts.updateOne({userID: newContact.userID},
+                {$push:{ 
+                        contact: newContact.contact[0]}
+                }).then(saved =>{
+                    res.status(200).send({message: "userID saved"})
+                }).catch(error =>{
+                    res.status(401).send({error})
+                })
+            }else{
+                res.status(401).send({message: "This userID already Saved"});
+            }
+        })
+    }else{
+        newContact.save()
+        .then(contact => 
+            res.status(200).send(contact)
+        ).catch(error =>{
+            res.json({error})
+        })
+    }
+})
 
 router.post('/create', async (req, res) => {
-
     const {errors, isValid} = validatorRegister(req.body);
-    
     if(!isValid){
         return res.status(400).json(errors);
     }else{
-
         const newUser = new User({
             username: req.body.username,
             password: req.body.password,
             userID: req.body.userID
         });
-
         let username = req.body.username;
         let userID = req.body.userID;
         try{
@@ -65,12 +100,6 @@ router.post('/create', async (req, res) => {
     }
 });
 
-
-
-//@route DELETE api/items/:id
-// @desc DELETE an items
-// @access public
-
 router.delete('/user/:id',(req, res) => {
     User.findById(req.params.id).then(user => 
             user.remove().then(() => res.json({success: true}))
@@ -78,19 +107,14 @@ router.delete('/user/:id',(req, res) => {
         .catch(err => res.status(404).json({success: false}))
 });
 
-
 router.post('/login',  (req, res) => {
-
-
     const {errors, isValid} = validatorLogin(req.body);
-    
     if(!isValid){
         return res.status(400).json(errors);
     }
     const userInfo = {
         username: req.body.username,
         password: req.body.password,
-    
     }
     let username = userInfo.username
     let password = userInfo.password
@@ -113,7 +137,7 @@ router.post('/login',  (req, res) => {
                         jwt.sign(
                             payload, 
                             keys.secretOrKey, 
-                            { expiresIn: 3600 },
+                            { expiresIn: '365d' },
                             (err, token) => {
                                 res.json({
                                     success: true,
@@ -132,8 +156,6 @@ router.post('/login',  (req, res) => {
     })
 });
 
-//projected data 
-
 router.get('/user/auth', checkToken, (req, res) => {
     jwt.verify(req.token, 'privatekey', (err, user) =>{
         if(err){
@@ -144,10 +166,8 @@ router.get('/user/auth', checkToken, (req, res) => {
     })
 });
 
-
-
 // You may want to start commenting in information about your routes so that you can find the appropriate ones quickly.
-router.get('/current', passport.authenticate('jwt', {session: false}), (req, res) => {
+router.get('/gumzo/user', passport.authenticate('jwt', {session: false}), (req, res) => {
     res.status(200).json({
         username: req.user.username,
         userID: req.user.userID
@@ -160,7 +180,6 @@ function checkToken(req, res, next) {
     if(typeof header !== 'undefined') {
         const bearer = header.split(' ');
         const token = bearer[1];
-
         req.token = token;
         next();
     } else {
@@ -168,6 +187,5 @@ function checkToken(req, res, next) {
         res.sendStatus(403)
     }
 }
-
 
 module.exports =  router; 
